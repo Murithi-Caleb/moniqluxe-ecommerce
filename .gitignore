@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+coverage/
+.env*
+!.env.local.example
+functions/node_modules/
+functions/.env*
+!.env.example
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
