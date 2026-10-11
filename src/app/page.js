@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
+import { collection, getDocs } from "firebase/firestore";
 import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/context/CartContext";
+import { db, firebaseConfigError } from "@/lib/firebase";
 
 const featuredProducts = [
   {
@@ -26,6 +29,77 @@ const featuredProducts = [
 
 export default function HomePage() {
   const { itemCount } = useCart();
+  const [products, setProducts] = useState(featuredProducts);
+  const [catalogStatus, setCatalogStatus] = useState("demo");
+  const [catalogError, setCatalogError] = useState("");
+
+  useEffect(() => {
+    if (firebaseConfigError) {
+      setCatalogStatus("error");
+      setCatalogError(firebaseConfigError.message);
+      return;
+    }
+
+    if (!db) {
+      return;
+    }
+
+    let isCurrent = true;
+    setCatalogStatus("loading");
+    setCatalogError("");
+
+    getDocs(collection(db, "products"))
+      .then((snapshot) => {
+        const liveProducts = snapshot.docs.flatMap((productDocument) => {
+          const product = productDocument.data();
+          if (product.active === false) {
+            return [];
+          }
+
+          if (
+            typeof product.title !== "string" ||
+            !Number.isSafeInteger(product.price) ||
+            product.price < 0 ||
+            !["local_stock", "dropship"].includes(product.fulfillmentType)
+          ) {
+            throw new Error(
+              `Product "${productDocument.id}" is missing a valid title, whole-number price, or fulfillment type.`,
+            );
+          }
+
+          return [
+            {
+              id: productDocument.id,
+              title: product.title,
+              price: product.price,
+              fulfillmentType: product.fulfillmentType,
+              imageUrl: typeof product.imageUrl === "string" ? product.imageUrl : "",
+            },
+          ];
+        });
+
+        if (isCurrent) {
+          setProducts(liveProducts);
+          setCatalogStatus("ready");
+        }
+      })
+      .catch((error) => {
+        console.error("Unable to load the Firestore product catalog.", error);
+        if (isCurrent) {
+          setProducts([]);
+          setCatalogError(
+            error instanceof Error
+              ? error.message
+              : "An unexpected error occurred while loading products.",
+          );
+          setCatalogStatus("error");
+        }
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   return (
     <main className="min-h-screen">
@@ -78,15 +152,34 @@ export default function HomePage() {
               Featured pieces
             </h2>
           </div>
-          <p className="hidden text-xs text-white/40 sm:block">
-            Sample products — connect your Firestore catalog to go live
+          {catalogStatus === "demo" && (
+            <p className="hidden text-xs text-white/40 sm:block">
+              Sample products — connect Firebase to load your live catalog
+            </p>
+          )}
+        </div>
+        {catalogStatus === "loading" ? (
+          <p className="py-10 text-center text-sm text-white/50" aria-live="polite">
+            Loading the latest collection…
           </p>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        ) : catalogStatus === "error" ? (
+          <p
+            className="rounded-2xl border border-rose-300/20 bg-rose-300/5 p-5 text-sm text-rose-100/80"
+            role="alert"
+          >
+            The product catalog couldn&apos;t be loaded. {catalogError}
+          </p>
+        ) : products.length === 0 ? (
+          <p className="py-10 text-center text-sm text-white/50">
+            There are no products in the collection yet.
+          </p>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {products.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </main>
   );

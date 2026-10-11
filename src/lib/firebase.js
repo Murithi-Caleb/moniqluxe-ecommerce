@@ -5,7 +5,7 @@ import { getStorage } from "firebase/storage";
 
 function getFirebaseServices() {
   if (typeof window === "undefined") {
-    return { app: null, auth: null, db: null, storage: null };
+    return { app: null, auth: null, db: null, storage: null, error: null };
   }
 
   const requiredConfig = {
@@ -21,9 +21,18 @@ function getFirebaseServices() {
     .map(([key]) => key);
 
   if (missingConfig.length > 0) {
-    throw new Error(
-      `Missing Firebase client configuration: ${missingConfig.join(", ")}`,
-    );
+    const hasAnyConfig = Object.values(requiredConfig).some(Boolean);
+    return {
+      app: null,
+      auth: null,
+      db: null,
+      storage: null,
+      error: hasAnyConfig
+        ? new Error(
+            `Missing Firebase client configuration: ${missingConfig.join(", ")}`,
+          )
+        : null,
+    };
   }
 
   const config = {
@@ -37,7 +46,9 @@ function getFirebaseServices() {
     auth: getAuth(app),
     db: getFirestore(app),
     storage: getStorage(app),
+    error: null,
   };
 }
 
-export const { app, auth, db, storage } = getFirebaseServices();
+export const { app, auth, db, storage, error: firebaseConfigError } =
+  getFirebaseServices();
