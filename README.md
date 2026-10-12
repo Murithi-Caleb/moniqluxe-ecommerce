@@ -25,6 +25,10 @@ authenticated pending orders.
 
 ## Run locally
 
+For the complete step-by-step guide to configuring a live catalog, running the
+WhatsApp MVP, deploying it, and planning the next implementation steps, see
+[MVP_SETUP.md](./MVP_SETUP.md).
+
 Requirements: Node.js 22 or newer and npm.
 
 ```sh
