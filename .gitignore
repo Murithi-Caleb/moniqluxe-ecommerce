@@ -10,3 +10,4 @@ functions/.env*
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+.env.local
