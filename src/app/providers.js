@@ -1,7 +1,16 @@
 "use client";
 
+import SiteHeader from "@/components/SiteHeader";
+import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 
 export default function Providers({ children }) {
-  return <CartProvider>{children}</CartProvider>;
+  return (
+    <AuthProvider>
+      <CartProvider>
+        <SiteHeader />
+        {children}
+      </CartProvider>
+    </AuthProvider>
+  );
 }

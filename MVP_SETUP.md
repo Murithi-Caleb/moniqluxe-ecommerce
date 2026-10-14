@@ -5,9 +5,10 @@ MVP. The MVP lets customers browse a Firestore catalog, add products to a bag,
 and send an order inquiry through WhatsApp. You confirm availability, delivery,
 and payment with each customer.
 
-**Important:** online payment, automatic order submission, customer sign-in, and
-stock reservation are not implemented. The checkout button opens WhatsApp; it
-does not charge a customer or create an order in Firestore.
+**Important:** customer email/password sign-in and account creation are available
+when Firebase Authentication is configured. Online payment, automatic order
+submission, and stock reservation are not implemented. The checkout button opens
+WhatsApp; it does not charge a customer or create an order in Firestore.
 
 ## 1. Check prerequisites
 
@@ -74,7 +75,9 @@ Skip this section if a sample-catalog preview is all you need.
    shop's number. `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` may be left blank.
 5. In **Project settings → General → Your apps**, make sure the values belong to
    the same Firebase project as the Firestore database.
-6. Sign in to Firebase CLI and select this project. If the CLI is not already
+6. In **Build → Authentication → Sign-in method**, enable the **Email/Password**
+   provider. This enables the `/signup` and `/login` pages and password reset.
+7. Sign in to Firebase CLI and select this project. If the CLI is not already
    available, `npx` can run it without a global install:
 
    ```powershell
@@ -85,7 +88,7 @@ Skip this section if a sample-catalog preview is all you need.
    When prompted, choose the project created above and give it a local alias.
    This writes project selection to `.firebaserc`; check the selected project
    before deploying rules.
-7. Deploy the repository's Firestore rules:
+8. Deploy the repository's Firestore rules:
 
    ```powershell
    npx firebase-tools deploy --only firestore:rules
@@ -94,7 +97,7 @@ Skip this section if a sample-catalog preview is all you need.
    The rules allow anyone to read products, deny client product writes, and
    prevent unauthenticated order reads. Do not loosen them to make catalog
    editing easier.
-8. In the Firebase console, add documents to the `products` collection. For
+9. In the Firebase console, add documents to the `products` collection. For
    each product, use a unique document ID and these fields:
 
    | Field | Type | Requirement |
@@ -119,12 +122,14 @@ Skip this section if a sample-catalog preview is all you need.
    }
    ```
 
-9. Restart `npm run dev` if it is already running, then open
+10. Restart `npm run dev` if it is already running, then open
    <http://localhost:3000>. Verify that the live products appear and that an
-   inactive product does not. Check the browser console and page if the catalog
-   reports an error; incomplete Firebase configuration and invalid product data
-   are surfaced rather than silently replaced with sample data.
-10. Place a test inquiry using the bag and WhatsApp button. Confirm the received
+   inactive product does not. Create a test account and verify that you can log
+   in, sign out, and request a password reset. Check the browser console and
+   page if the catalog reports an error; incomplete Firebase configuration and
+   invalid product data are surfaced rather than silently replaced with sample
+   data.
+11. Place a test inquiry using the bag and WhatsApp button. Confirm the received
     message, price, delivery wording, and final manual order-confirmation process
     with the shop team.
 
@@ -150,8 +155,8 @@ Next.js (for example, Vercel):
    production environment variables. These Firebase web-app values are used by
    the browser; never put service-account keys, payment secrets, or other
    private credentials in `NEXT_PUBLIC_*` variables.
-4. Deploy, then open the production URL and repeat the catalog, bag, and
-   WhatsApp inquiry checks from steps 9–10.
+4. Deploy, then open the production URL and repeat the catalog, account,
+   bag, and WhatsApp inquiry checks from steps 10–11.
 5. If a `NEXT_PUBLIC_*` value changes, redeploy so the new value is included in
    the frontend build.
 
@@ -169,11 +174,12 @@ Work through these in order; each step builds on the one before it:
    and mobile, confirm how staff verify stock and delivery, and document the
    manual payment and fulfillment process. Keep customer-facing prices and
    fulfillment estimates accurate.
-2. **Implement authenticated checkout.** Add a customer sign-in or other
-   approved identity flow, call `createCheckoutOrder` from checkout with a
-   Firebase ID token, and show success and recoverable errors. The existing
-   function creates `pending_payment` orders using server-side product prices,
-   but the current storefront does not call it.
+2. **Integrate authenticated checkout.** Customer email/password signup, login,
+   password reset, and sign-out are implemented in the storefront. Connect the
+   signed-in customer to `createCheckoutOrder` from checkout using a Firebase ID
+   token, and show order success and recoverable errors. The existing function
+   creates `pending_payment` orders using server-side product prices, but the
+   current storefront does not call it.
 3. **Add and test M-Pesa payments.** Implement server-side payment initiation
    and a verified callback that updates order status. Store provider credentials
    in Firebase Functions secrets, never in frontend environment variables.

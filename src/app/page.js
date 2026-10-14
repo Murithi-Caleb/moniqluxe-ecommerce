@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { ShoppingBag } from "lucide-react";
 import { collection, getDocs } from "firebase/firestore";
 import ProductCard from "@/components/ProductCard";
-import { useCart } from "@/context/CartContext";
 import { db, firebaseConfigError } from "@/lib/firebase";
 
 const featuredProducts = [
@@ -28,7 +25,6 @@ const featuredProducts = [
 ];
 
 export default function HomePage() {
-  const { itemCount } = useCart();
   const [products, setProducts] = useState(featuredProducts);
   const [catalogStatus, setCatalogStatus] = useState("demo");
   const [catalogError, setCatalogError] = useState("");
@@ -103,24 +99,6 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b border-white/10">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <Link
-            href="/"
-            className="text-sm font-medium tracking-[0.18em] text-[#e7d29e]"
-          >
-            MONIQ☆LUXE
-          </Link>
-          <Link
-            href="/checkout"
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 px-4 py-2 text-sm text-white transition hover:border-[#d5b875]/70"
-          >
-            <ShoppingBag aria-hidden="true" size={16} />
-            Bag <span className="text-[#e7d29e]">({itemCount})</span>
-          </Link>
-        </div>
-      </header>
-
       <section className="mx-auto max-w-7xl px-6 pb-20 pt-16 sm:pt-24">
         <p className="text-xs uppercase tracking-[0.3em] text-[#d5b875]">
           Curated with intention
