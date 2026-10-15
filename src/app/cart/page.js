@@ -12,7 +12,14 @@ const currencyFormatter = new Intl.NumberFormat("en-KE", {
 });
 
 export default function CartPage() {
-  const { items, subtotal, updateQuantity, removeItem, isHydrated } = useCart();
+  const {
+    items,
+    itemCount,
+    subtotal,
+    updateQuantity,
+    removeItem,
+    isHydrated,
+  } = useCart();
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 sm:py-16">
@@ -32,10 +39,7 @@ export default function CartPage() {
         </div>
         {isHydrated && items.length > 0 && (
           <p className="text-sm text-white/45">
-            {items.reduce((count, item) => count + item.quantity, 0)}{" "}
-            {items.reduce((count, item) => count + item.quantity, 0) === 1
-              ? "item"
-              : "items"}
+            {itemCount} {itemCount === 1 ? "item" : "items"}
           </p>
         )}
       </div>
