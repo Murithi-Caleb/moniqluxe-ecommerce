@@ -64,7 +64,7 @@ export default function SiteHeader() {
             </>
           ) : null}
           <Link
-            href="/checkout"
+            href="/cart"
             aria-label={`Shopping bag, ${itemCount} ${itemCount === 1 ? "item" : "items"}`}
             className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-sm text-white transition hover:border-[#d5b875]/70 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d5b875] sm:px-4"
           >

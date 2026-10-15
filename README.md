@@ -22,9 +22,11 @@ Firebase Cloud Function prepared to create authenticated pending orders.
 - Added responsive `/signup` and `/login` pages with labeled inputs, password
   visibility, confirmation, inline validation, accessible status/error feedback,
   and a branded layout.
-- Added WhatsApp inquiry links for individual products and a prefilled bag
-  summary. Checkout currently hands off to WhatsApp for order questions and
-  manual confirmation.
+- Added separate `/cart` and `/checkout` pages. Customers can review and update
+  their bag, enter delivery details, and choose M-Pesa (Daraja Sandbox) or Visa /
+  bank card (Pesapal) as a payment preference before sending an order request on
+  WhatsApp. Gateway processing is not connected; the checkout does not collect
+  card details or charge customers.
 - Added a Firebase Cloud Function that verifies Firebase ID tokens, validates
   requested product IDs and quantities against Firestore, checks local stock,
   and creates a pending-payment order using server-side product prices.
@@ -87,7 +89,8 @@ The `serve` script in `functions/package.json` starts the Functions and Firestor
 emulators; the `deploy` script deploys the function and Firestore rules. Configure
 `WEB_APP_ORIGIN` for the deployed storefront's CORS origin. M-Pesa secret names
 are documented in `.env.local.example`, but M-Pesa payment initiation and callback
-handling are not implemented yet.
+handling are not implemented yet. The checkout only passes the customer's
+payment preference into the WhatsApp inquiry; no payment is initiated.
 
 ## Project map
 
@@ -96,8 +99,10 @@ handling are not implemented yet.
 - `src/app/page.js` — storefront home page. Loads active products from Firestore
   when configured, otherwise displays sample products, and renders catalog
   loading, error, and empty states.
-- `src/app/checkout/page.js` — shopping-bag page with quantity controls, item
-  removal, subtotal, fulfillment estimates, and a WhatsApp checkout summary.
+- `src/app/cart/page.js` — shopping-bag review with quantity controls, item
+  removal, fulfillment estimates, subtotal, and a link to checkout.
+- `src/app/checkout/page.js` — delivery form, M-Pesa and Pesapal preference
+  selection, order summary, and WhatsApp order-request handoff.
 - `src/app/login/page.js` and `src/app/signup/page.js` — customer sign-in and
   account-creation routes.
 - `src/app/layout.js` — shared root layout, global stylesheet, and page metadata.

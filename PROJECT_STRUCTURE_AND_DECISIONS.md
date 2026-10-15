@@ -15,7 +15,8 @@ and why the current MVP is built this way.
 │   └── package-lock.json      Pinned backend dependency tree
 ├── src/
 │   ├── app/                   Next.js App Router routes and root styling
-│   │   ├── checkout/page.js   Bag review and WhatsApp handoff
+│   │   ├── cart/page.js       Bag review and quantity controls
+│   │   ├── checkout/page.js   Delivery details, payment preference, and handoff
 │   │   ├── login/page.js      Login route and route metadata
 │   │   ├── signup/page.js     Signup route and route metadata
 │   │   ├── globals.css        Global dark theme and Tailwind import
@@ -122,10 +123,11 @@ WhatsApp inquiry text; they are not authoritative for a paid order.
 The Cloud Function verifies a Firebase ID token, validates item identifiers and
 quantities, reads current product prices and availability from Firestore, checks
 local stock when configured, and creates an order with `pending_payment` status.
-Firestore rules deny client-side product writes and order writes. The current
-checkout UI does **not** yet call this function: it builds an inquiry and hands
-off to WhatsApp for manual confirmation. Payment, stock reservation, and order
-status updates therefore remain future work.
+Firestore rules deny client-side product writes and order writes. The current checkout UI does **not** yet call this function: it collects delivery
+details and a payment preference, then hands an order request to WhatsApp for
+manual confirmation. M-Pesa (Daraja Sandbox) and Pesapal are preference options
+only; payment initiation, stock reservation, and order status updates remain
+future work. Card details are never collected by the storefront.
 
 ### Narrow, explicit Firestore access
 
@@ -175,9 +177,9 @@ technology use. Color is not the only way an error or status is conveyed.
 
 The product card and bag show prices in KES and identify local-stock versus
 dropship/pre-order fulfillment with delivery estimates. The bag provides direct
-quantity controls and removal actions, while the WhatsApp summary makes the
-selected products, quantities, and subtotal explicit before customers contact
-the store. Delivery fees and final availability are described as requiring
+quantity controls and removal actions, while checkout collects delivery details
+and a preferred payment method alongside an order summary before the WhatsApp
+handoff. Delivery fees and final availability are described as requiring
 confirmation rather than being implied as guaranteed.
 
 ## Current boundaries and next implementation steps
@@ -185,8 +187,8 @@ confirmation rather than being implied as guaranteed.
 - Configure Firebase and enable Email/Password Authentication for live accounts.
 - Integrate authenticated checkout with `createCheckoutOrder` and provide
   recoverable order status feedback.
-- Implement M-Pesa initiation and verified server-side callbacks before claiming
-  that online payments are supported.
+- Implement Daraja Sandbox initiation and verified server-side callbacks plus
+  Pesapal card checkout before claiming that online payments are supported.
 - Define transactional stock reservation, duplicate callback handling, order
   status operations, and staff-only catalog/order management.
 - Add automated tests for auth states, cart behavior, Firestore rules, order

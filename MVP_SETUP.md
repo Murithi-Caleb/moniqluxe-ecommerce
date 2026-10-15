@@ -6,9 +6,11 @@ and send an order inquiry through WhatsApp. You confirm availability, delivery,
 and payment with each customer.
 
 **Important:** customer email/password sign-in and account creation are available
-when Firebase Authentication is configured. Online payment, automatic order
-submission, and stock reservation are not implemented. The checkout button opens
-WhatsApp; it does not charge a customer or create an order in Firestore.
+when Firebase Authentication is configured. The bag and checkout collect
+delivery details and a preferred payment option (M-Pesa/Daraja Sandbox or
+Visa/bank card/Pesapal), then open a WhatsApp order request. Payment gateway
+processing, automatic order submission, and stock reservation are not
+implemented; customers are not charged online.
 
 ## 1. Check prerequisites
 
@@ -52,8 +54,10 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. Confirm that the sample products appear, add one
-to the bag, open the bag, and check that its quantity and subtotal are shown.
-Use the WhatsApp button to verify the message and recipient are correct.
+to the bag, open `/cart`, and check its quantity and subtotal. Continue to
+checkout, enter delivery details, select a payment preference, and verify the
+WhatsApp order request and recipient. This is a manual order inquiry; neither
+payment option initiates a real or sandbox charge yet.
 
 Stop the server with `Ctrl+C` when finished.
 
@@ -129,9 +133,10 @@ Skip this section if a sample-catalog preview is all you need.
    page if the catalog reports an error; incomplete Firebase configuration and
    invalid product data are surfaced rather than silently replaced with sample
    data.
-11. Place a test inquiry using the bag and WhatsApp button. Confirm the received
-    message, price, delivery wording, and final manual order-confirmation process
-    with the shop team.
+11. Place a test inquiry using the bag and checkout. Confirm that the received
+    message includes delivery details, selected payment preference, item
+    quantities, prices, and subtotal. Confirm the manual order process with the
+    shop team.
 
 ## 4. Build and deploy the storefront
 
@@ -194,6 +199,8 @@ Work through these in order; each step builds on the one before it:
    callbacks. Test rules and functions in the Firebase emulators, then review
    privacy, support, shipping, returns, and payment messaging before launch.
 
-Until steps 2 and 3 are complete, describe the checkout honestly as a WhatsApp
-order inquiry with manual confirmation—not as an online checkout or a payment
-flow.
+Until authenticated order creation and payment gateway integrations are
+complete, describe the checkout honestly as a WhatsApp order inquiry with
+manual confirmation—not as an online checkout or a payment flow. Daraja and
+Pesapal credentials must be held server-side; do not collect or send card
+numbers or security codes through the storefront or WhatsApp.
