@@ -33,7 +33,10 @@ and why the current MVP is built this way.
 │   │   └── CartContext.js     Bag state, persistence, and derived totals
 │   └── lib/                   External service clients and utilities
 │       ├── firebase.js        Firebase app/Auth/Firestore/Storage setup
-│       └── whatsapp.js        WhatsApp link construction
+│       ├── products.mjs       Product data validation and quantity limits
+│       └── whatsapp.js       WhatsApp link construction
+├── tests/
+│   └── products.test.mjs      Product catalog validation tests
 ├── firestore.rules            Firestore access-control rules
 ├── firebase.json              Firebase CLI project configuration
 ├── .env.local.example         Browser configuration template and guidance
@@ -94,6 +97,14 @@ sample product catalog can still be previewed. Partial configuration is
 represented as an error rather than silently pretending the live service is
 working. This supports local design and development without requiring a Firebase
 project while keeping configuration mistakes visible.
+
+`products.mjs` normalizes every live product against the documented schema:
+non-empty title, non-negative whole-number KES price, supported fulfillment
+type, optional HTTPS image URL, boolean active flag, and optional non-negative
+whole-number stock. Invalid records are omitted with a visible warning so one
+bad document does not take down the catalog. When local stock is specified, the
+product card and cart enforce that quantity; all products are capped at 20 units
+to match the order service.
 
 Firebase browser configuration is public client configuration, not a secret.
 Administrative credentials and payment secrets must stay server-side and must
@@ -192,7 +203,8 @@ confirmation rather than being implied as guaranteed.
 - Define transactional stock reservation, duplicate callback handling, order
   status operations, and staff-only catalog/order management.
 - Add automated tests for auth states, cart behavior, Firestore rules, order
-  validation, stock edge cases, and payment callbacks.
+  validation, stock edge cases, and payment callbacks. Focused product data and
+  quantity validation tests are available through `npm test`.
 
 The current frontend build has been verified with `npm run build`; automated
 test suites have not yet been added.

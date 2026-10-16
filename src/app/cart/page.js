@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Minus, Plus, Trash2 } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { getProductMaxQuantity } from "@/lib/products.mjs";
 
 const currencyFormatter = new Intl.NumberFormat("en-KE", {
   style: "currency",
@@ -70,75 +71,81 @@ export default function CartPage() {
       ) : (
         <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <ul className="divide-y divide-white/10 border-y border-white/10">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-[#24211d]">
-                    {item.imageUrl ? (
-                      <Image
-                        src={item.imageUrl}
-                        alt={item.title}
-                        fill
-                        sizes="80px"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    ) : (
-                      <div
-                        className="flex h-full items-center justify-center px-2 text-center text-[10px] text-white/40"
-                        role="img"
-                        aria-label={`${item.title} image unavailable`}
-                      >
-                        Image coming soon
-                      </div>
-                    )}
+            {items.map((item) => {
+              const maxQuantity = getProductMaxQuantity(item);
+              return (
+                <li
+                  key={item.id}
+                  className="flex flex-col gap-4 py-5 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-center gap-4">
+                    <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-[#24211d]">
+                      {item.imageUrl ? (
+                        <Image
+                          src={item.imageUrl}
+                          alt={item.title}
+                          fill
+                          sizes="80px"
+                          className="object-cover"
+                          unoptimized
+                        />
+                      ) : (
+                        <div
+                          className="flex h-full items-center justify-center px-2 text-center text-[10px] text-white/40"
+                          role="img"
+                          aria-label={`${item.title} image unavailable`}
+                        >
+                          Image coming soon
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="font-medium text-white">{item.title}</h2>
+                      <p className="mt-1 text-xs text-white/50">
+                        {item.fulfillmentType === "local_stock"
+                          ? item.stockQuantity === undefined
+                            ? "In Stock · Fast, same-day delivery"
+                            : `${item.stockQuantity} available · Fast delivery`
+                          : "Pre-order · Estimated 7–14 days"}
+                      </p>
+                      <p className="mt-2 text-sm text-[#e7d29e]">
+                        {currencyFormatter.format(item.price)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <h2 className="font-medium text-white">{item.title}</h2>
-                    <p className="mt-1 text-xs text-white/50">
-                      {item.fulfillmentType === "local_stock"
-                        ? "In Stock · Fast, same-day delivery"
-                        : "Pre-order · Estimated 7–14 days"}
-                    </p>
-                    <p className="mt-2 text-sm text-[#e7d29e]">
-                      {currencyFormatter.format(item.price)}
-                    </p>
+                  <div className="flex items-center gap-3 pl-24 sm:pl-0">
+                    <button
+                      type="button"
+                      aria-label={`Decrease quantity of ${item.title}`}
+                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      className="rounded-full border border-white/15 p-2 text-white/75 transition hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875]"
+                    >
+                      <Minus aria-hidden="true" size={14} />
+                    </button>
+                    <span className="min-w-6 text-center text-sm text-white">
+                      {item.quantity}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Increase quantity of ${item.title}`}
+                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      disabled={item.quantity >= maxQuantity}
+                      className="rounded-full border border-white/15 p-2 text-white/75 transition hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875] disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      <Plus aria-hidden="true" size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${item.title} from bag`}
+                      onClick={() => removeItem(item.id)}
+                      className="ml-1 rounded-full p-2 text-white/40 transition hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875]"
+                    >
+                      <Trash2 aria-hidden="true" size={16} />
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-3 pl-24 sm:pl-0">
-                  <button
-                    type="button"
-                    aria-label={`Decrease quantity of ${item.title}`}
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="rounded-full border border-white/15 p-2 text-white/75 transition hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875]"
-                  >
-                    <Minus aria-hidden="true" size={14} />
-                  </button>
-                  <span className="min-w-6 text-center text-sm text-white">
-                    {item.quantity}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Increase quantity of ${item.title}`}
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="rounded-full border border-white/15 p-2 text-white/75 transition hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875]"
-                  >
-                    <Plus aria-hidden="true" size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Remove ${item.title} from bag`}
-                    onClick={() => removeItem(item.id)}
-                    className="ml-1 rounded-full p-2 text-white/40 transition hover:text-rose-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d5b875]"
-                  >
-                    <Trash2 aria-hidden="true" size={16} />
-                  </button>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
 
           <aside className="h-fit rounded-2xl border border-white/10 bg-white/[0.025] p-6">
@@ -148,8 +155,8 @@ export default function CartPage() {
               <span className="text-white">{currencyFormatter.format(subtotal)}</span>
             </div>
             <p className="mt-3 text-xs leading-5 text-white/40">
-              Delivery fees and final availability will be confirmed before
-              payment.
+              Product prices, delivery fees, and final availability are
+              reconfirmed by the store before payment.
             </p>
             <Link
               href="/checkout"

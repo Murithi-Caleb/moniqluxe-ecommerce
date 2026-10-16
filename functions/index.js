@@ -89,10 +89,15 @@ exports.createCheckoutOrder = onRequest(
         const product = snapshot.data();
         if (
           product.active === false ||
+          (product.active !== undefined && typeof product.active !== "boolean") ||
           typeof product.title !== "string" ||
+          product.title.trim().length === 0 ||
           !Number.isSafeInteger(product.price) ||
           product.price < 0 ||
-          !["local_stock", "dropship"].includes(product.fulfillmentType)
+          !["local_stock", "dropship"].includes(product.fulfillmentType) ||
+          (product.stockQuantity !== undefined &&
+            (!Number.isSafeInteger(product.stockQuantity) ||
+              product.stockQuantity < 0))
         ) {
           return res.status(400).json({
             error: `Product ${requestedItem.productId} is not available for checkout.`,
@@ -101,7 +106,7 @@ exports.createCheckoutOrder = onRequest(
 
         if (
           product.fulfillmentType === "local_stock" &&
-          Number.isSafeInteger(product.stockQuantity) &&
+          product.stockQuantity !== undefined &&
           requestedItem.quantity > product.stockQuantity
         ) {
           return res.status(409).json({
@@ -116,7 +121,7 @@ exports.createCheckoutOrder = onRequest(
         subtotal += lineTotal;
         orderItems.push({
           productId: snapshot.id,
-          title: product.title,
+          title: product.title.trim(),
           unitPrice: product.price,
           quantity: requestedItem.quantity,
           fulfillmentType: product.fulfillmentType,

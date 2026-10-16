@@ -111,7 +111,7 @@ Skip this section if a sample-catalog preview is all you need.
    | `fulfillmentType` | string | Required; exactly `local_stock` or `dropship` |
    | `imageUrl` | string | Optional; use a publicly accessible HTTPS image URL |
    | `active` | boolean | Optional; set `true` to show it; `false` hides it |
-   | `stockQuantity` | number | Optional; whole-number local quantity, useful for future checkout validation |
+   | `stockQuantity` | number | Optional; non-negative whole-number local quantity; omit if stock is not tracked |
 
    Example document:
 
@@ -131,8 +131,8 @@ Skip this section if a sample-catalog preview is all you need.
    inactive product does not. Create a test account and verify that you can log
    in, sign out, and request a password reset. Check the browser console and
    page if the catalog reports an error; incomplete Firebase configuration and
-   invalid product data are surfaced rather than silently replaced with sample
-   data.
+   invalid product records are omitted with a visible warning and logged for
+   correction; other valid products remain available.
 11. Place a test inquiry using the bag and checkout. Confirm that the received
     message includes delivery details, selected payment preference, item
     quantities, prices, and subtotal. Confirm the manual order process with the
@@ -204,3 +204,6 @@ complete, describe the checkout honestly as a WhatsApp order inquiry with
 manual confirmation—not as an online checkout or a payment flow. Daraja and
 Pesapal credentials must be held server-side; do not collect or send card
 numbers or security codes through the storefront or WhatsApp.
+
+Run the focused product validation tests with `npm test` and verify the
+production bundle with `npm run build` before deployment.

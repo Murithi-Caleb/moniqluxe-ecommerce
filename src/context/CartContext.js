@@ -8,6 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { getProductMaxQuantity, MAX_ORDER_QUANTITY } from "@/lib/products.mjs";
 
 const STORAGE_KEY = "moniq-luxe-cart-v1";
 const CartContext = createContext(null);
@@ -29,10 +30,18 @@ function readStoredCart() {
         item &&
         typeof item.id === "string" &&
         typeof item.title === "string" &&
-        Number.isFinite(item.price) &&
+        Number.isSafeInteger(item.price) &&
+        item.price >= 0 &&
         Number.isSafeInteger(item.quantity) &&
         item.quantity > 0 &&
-        ["local_stock", "dropship"].includes(item.fulfillmentType),
+        item.quantity <= MAX_ORDER_QUANTITY &&
+        ["local_stock", "dropship"].includes(item.fulfillmentType) &&
+        (item.stockQuantity === undefined ||
+          (Number.isSafeInteger(item.stockQuantity) &&
+            item.stockQuantity >= 0)) &&
+        (item.fulfillmentType !== "local_stock" ||
+          item.stockQuantity === undefined ||
+          item.quantity <= item.stockQuantity),
     );
   } catch (error) {
     console.error("Unable to restore the saved cart.", error);
@@ -66,19 +75,27 @@ export function CartProvider({ children }) {
       !product ||
       typeof product.id !== "string" ||
       typeof product.title !== "string" ||
-      !Number.isFinite(product.price) ||
+      !Number.isSafeInteger(product.price) ||
       product.price < 0 ||
-      !["local_stock", "dropship"].includes(product.fulfillmentType)
+      !["local_stock", "dropship"].includes(product.fulfillmentType) ||
+      (product.stockQuantity !== undefined &&
+        (!Number.isSafeInteger(product.stockQuantity) ||
+          product.stockQuantity < 0))
     ) {
       throw new TypeError("A valid product is required to add an item to the cart.");
     }
 
     setItems((currentItems) => {
       const existing = currentItems.find((item) => item.id === product.id);
+      const nextQuantity = (existing?.quantity || 0) + 1;
+      if (nextQuantity > getProductMaxQuantity(product)) {
+        return currentItems;
+      }
+
       if (existing) {
         return currentItems.map((item) =>
           item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...product, quantity: nextQuantity }
             : item,
         );
       }
@@ -106,9 +123,15 @@ export function CartProvider({ children }) {
     }
 
     setItems((currentItems) =>
-      currentItems.map((item) =>
-        item.id === productId ? { ...item, quantity } : item,
-      ),
+      currentItems.map((item) => {
+        if (item.id !== productId) {
+          return item;
+        }
+        if (quantity > getProductMaxQuantity(item)) {
+          throw new RangeError("Cart quantity exceeds available product limits.");
+        }
+        return { ...item, quantity };
+      }),
     );
   }, []);
 

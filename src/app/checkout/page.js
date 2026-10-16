@@ -268,8 +268,8 @@ export default function CheckoutPage() {
               </span>
             </div>
             <p className="mt-3 text-xs leading-5 text-white/40">
-              Delivery fees and final availability will be confirmed with the
-              store.
+              Product prices, delivery fees, and final availability are
+              reconfirmed by the store before payment.
             </p>
           </div>
           <button

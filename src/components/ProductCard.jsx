@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/context/CartContext";
+import { getProductMaxQuantity } from "@/lib/products.mjs";
 import WhatsAppInquiryLink from "@/components/WhatsAppInquiryLink";
 
 const currencyFormatter = new Intl.NumberFormat("en-KE", {
@@ -12,8 +13,13 @@ const currencyFormatter = new Intl.NumberFormat("en-KE", {
 });
 
 export default function ProductCard({ product }) {
-  const { addItem } = useCart();
+  const { addItem, items } = useCart();
   const isLocalStock = product.fulfillmentType === "local_stock";
+  const isOutOfStock = isLocalStock && product.stockQuantity === 0;
+  const maxQuantity = getProductMaxQuantity(product);
+  const currentQuantity =
+    items.find((item) => item.id === product.id)?.quantity || 0;
+  const limitReached = currentQuantity >= maxQuantity;
   const price = currencyFormatter.format(product.price);
   const inquiryMessage = [
     "Hello Moniq☆Luxe Collection, I would like to inquire about:",
@@ -45,12 +51,18 @@ export default function ProductCard({ product }) {
         )}
         <span
           className={`absolute left-4 top-4 rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] backdrop-blur ${
-            isLocalStock
-              ? "bg-[#17251d]/90 text-[#c8e4cf]"
-              : "bg-[#30281a]/90 text-[#f0d79c]"
+            isOutOfStock
+              ? "bg-rose-950/90 text-rose-200"
+              : isLocalStock
+                ? "bg-[#17251d]/90 text-[#c8e4cf]"
+                : "bg-[#30281a]/90 text-[#f0d79c]"
           }`}
         >
-          {isLocalStock ? "In Stock" : "Dropship / Pre-order"}
+          {isOutOfStock
+            ? "Out of Stock"
+            : isLocalStock
+              ? "In Stock"
+              : "Dropship / Pre-order"}
         </span>
       </div>
       <div className="space-y-4 p-5">
@@ -58,7 +70,13 @@ export default function ProductCard({ product }) {
           <div>
             <h2 className="font-medium text-white">{product.title}</h2>
             <p className="mt-1 text-xs text-white/50">
-              {isLocalStock ? "Fast, same-day delivery" : "Estimated delivery: 7–14 days"}
+              {isLocalStock
+                ? isOutOfStock
+                  ? "Currently out of stock"
+                  : product.stockQuantity === undefined
+                    ? "Fast, same-day delivery"
+                    : `${product.stockQuantity} available · Fast delivery`
+                : "Estimated delivery: 7–14 days"}
             </p>
           </div>
           <span className="shrink-0 text-sm text-[#e7d29e]">{price}</span>
@@ -67,10 +85,15 @@ export default function ProductCard({ product }) {
           <button
             type="button"
             onClick={() => addItem(product)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#d5b875] px-4 py-2.5 text-sm font-semibold text-[#181612] transition hover:bg-[#e4ca8f]"
+            disabled={limitReached}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-[#d5b875] px-4 py-2.5 text-sm font-semibold text-[#181612] transition hover:bg-[#e4ca8f] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ShoppingBag aria-hidden="true" size={16} />
-            Add to Cart
+            {maxQuantity === 0
+              ? "Out of Stock"
+              : limitReached
+                ? "Quantity Limit Reached"
+                : "Add to Cart"}
           </button>
           <WhatsAppInquiryLink
             message={inquiryMessage}

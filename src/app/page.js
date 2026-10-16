@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import ProductCard from "@/components/ProductCard";
 import { db, firebaseConfigError } from "@/lib/firebase";
+import { normalizeProduct } from "@/lib/products.mjs";
 
 const featuredProducts = [
   {
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [products, setProducts] = useState(featuredProducts);
   const [catalogStatus, setCatalogStatus] = useState("demo");
   const [catalogError, setCatalogError] = useState("");
+  const [invalidProductCount, setInvalidProductCount] = useState(0);
 
   useEffect(() => {
     if (firebaseConfigError) {
@@ -43,39 +45,31 @@ export default function HomePage() {
     let isCurrent = true;
     setCatalogStatus("loading");
     setCatalogError("");
+    setInvalidProductCount(0);
 
     getDocs(collection(db, "products"))
       .then((snapshot) => {
+        let invalidCount = 0;
         const liveProducts = snapshot.docs.flatMap((productDocument) => {
-          const product = productDocument.data();
-          if (product.active === false) {
+          try {
+            const product = normalizeProduct(
+              productDocument.id,
+              productDocument.data(),
+            );
+            return product ? [product] : [];
+          } catch (error) {
+            invalidCount += 1;
+            console.error(
+              `Product "${productDocument.id}" is invalid and was omitted from the catalog.`,
+              error,
+            );
             return [];
           }
-
-          if (
-            typeof product.title !== "string" ||
-            !Number.isSafeInteger(product.price) ||
-            product.price < 0 ||
-            !["local_stock", "dropship"].includes(product.fulfillmentType)
-          ) {
-            throw new Error(
-              `Product "${productDocument.id}" is missing a valid title, whole-number price, or fulfillment type.`,
-            );
-          }
-
-          return [
-            {
-              id: productDocument.id,
-              title: product.title,
-              price: product.price,
-              fulfillmentType: product.fulfillmentType,
-              imageUrl: typeof product.imageUrl === "string" ? product.imageUrl : "",
-            },
-          ];
         });
 
         if (isCurrent) {
           setProducts(liveProducts);
+          setInvalidProductCount(invalidCount);
           setCatalogStatus("ready");
         }
       })
@@ -147,16 +141,30 @@ export default function HomePage() {
           >
             The product catalog couldn&apos;t be loaded. {catalogError}
           </p>
-        ) : products.length === 0 ? (
-          <p className="py-10 text-center text-sm text-white/50">
-            There are no products in the collection yet.
-          </p>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          <>
+            {invalidProductCount > 0 && (
+              <p
+                className="mb-5 rounded-xl border border-amber-200/20 bg-amber-200/5 p-4 text-sm text-amber-100/80"
+                role="status"
+              >
+                {invalidProductCount} product
+                {invalidProductCount === 1 ? " was" : "s were"} hidden because
+                catalog details need correction.
+              </p>
+            )}
+            {products.length === 0 ? (
+              <p className="py-10 text-center text-sm text-white/50">
+                There are no products in the collection yet.
+              </p>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>
