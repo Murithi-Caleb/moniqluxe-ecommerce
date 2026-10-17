@@ -1,11 +1,10 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 
 function getFirebaseServices() {
   if (typeof window === "undefined") {
-    return { app: null, auth: null, db: null, storage: null, error: null };
+    return { app: null, auth: null, db: null, error: null };
   }
 
   const requiredConfig = {
@@ -26,7 +25,6 @@ function getFirebaseServices() {
       app: null,
       auth: null,
       db: null,
-      storage: null,
       error: hasAnyConfig
         ? new Error(
             `Missing Firebase client configuration: ${missingConfig.join(", ")}`,
@@ -45,10 +43,9 @@ function getFirebaseServices() {
     app,
     auth: getAuth(app),
     db: getFirestore(app),
-    storage: getStorage(app),
     error: null,
   };
 }
 
-export const { app, auth, db, storage, error: firebaseConfigError } =
+export const { app, auth, db, error: firebaseConfigError } =
   getFirebaseServices();

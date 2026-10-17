@@ -37,6 +37,9 @@ Firebase Cloud Function prepared to create authenticated pending orders.
   the WhatsApp MVP, and the current implementation roadmap.
 - Added focused product-catalog validation tests for product data, fulfillment,
   image URLs, stock, and the order quantity limit.
+- Removed the unused Firebase Storage client SDK initialization so storefront
+  sessions load and initialize only the Firebase services currently in use
+  (Authentication and Firestore).
 
 ## Run locally
 
@@ -128,9 +131,10 @@ payment preference into the WhatsApp inquiry; no payment is initiated.
   persistence, hydration state, validation, item count, and subtotal.
 - `src/context/AuthContext.js` — Firebase authentication state and email/password
   account actions.
-- `src/lib/firebase.js` — Firebase client initialization and exported Auth,
-  Firestore, and Storage services. Missing configuration leaves the sample
-  storefront usable; partial configuration is exposed as a visible catalog error.
+- `src/lib/firebase.js` — Firebase client initialization and exported Auth and
+  Firestore services. Unused Storage is not loaded. Missing configuration leaves
+  the sample storefront usable; partial configuration is exposed as a visible
+  catalog error.
 - `src/lib/products.mjs` — shared Firestore product validation and cart quantity
   limits.
 - `src/lib/whatsapp.js` — formats WhatsApp chat URLs and message text.
