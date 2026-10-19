@@ -1,9 +1,9 @@
 # Moniq☆Luxe Collection
 
-Moniq☆Luxe is a Next.js storefront prototype for curated innerwear, accessories,
-footwear, and apparel. It includes a product catalog, a browser-persisted shopping
-bag, Firebase email/password account pages, WhatsApp order inquiries, and a
-Firebase Cloud Function prepared to create authenticated pending orders.
+Moniq☆Luxe is a Next.js storefront for curated innerwear, accessories, footwear,
+and apparel. It includes a product catalog, a browser-persisted shopping bag,
+Firebase email/password accounts, authenticated server-priced order creation,
+and WhatsApp order inquiries.
 
 ## Progress so far
 
@@ -23,16 +23,20 @@ Firebase Cloud Function prepared to create authenticated pending orders.
 - Added responsive `/signup` and `/login` pages with labeled inputs, password
   visibility, confirmation, inline validation, accessible status/error feedback,
   and a branded layout.
-- Added separate `/cart` and `/checkout` pages. Customers can review and update
-  their bag, enter delivery details, and choose M-Pesa (Daraja Sandbox) or Visa /
-  bank card (Pesapal) as a payment preference before sending an order request on
-  WhatsApp. Gateway processing is not connected; the checkout does not collect
-  card details or charge customers.
+- Added separate `/cart` and `/checkout` pages. Checkout requires sign-in,
+  creates an order through the authenticated Firebase Function, and sends the
+  returned order ID and server-calculated total with delivery details to
+  WhatsApp. Gateway processing is not connected; checkout does not collect card
+  details or charge customers.
 - Added a Firebase Cloud Function that verifies Firebase ID tokens, validates
   requested product IDs and quantities against Firestore, checks local stock,
   and creates a pending-payment order using server-side product prices.
 - Added Firestore rules that allow public product reads and restrict order access
-  to the order's authenticated owner.
+  to the order's authenticated owner, and prevent user profiles from storing
+  role or admin fields.
+- Added emulator-backed Firestore rules tests and a checkout integration test
+  proving that a client-supplied product price cannot change the server-calculated
+  order total.
 - Added setup and deployment guidance for Firebase, Authentication, Firestore,
   the WhatsApp MVP, and the current implementation roadmap.
 - Added focused product-catalog validation tests for product data, fulfillment,
@@ -59,10 +63,10 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. Without Firebase configuration the storefront uses
-the sample products. To load a live catalog, fill in the `NEXT_PUBLIC_FIREBASE_*`
-values in `.env.local` with a Firebase web app's configuration and set
-`NEXT_PUBLIC_WHATSAPP_NUMBER` to the shop's international phone number using
-digits only.
+the sample products. To place an order, configure Firebase Authentication and
+Firestore, deploy `createCheckoutOrder`, and set its URL in
+`NEXT_PUBLIC_ORDER_FUNCTION_URL`. Also set `NEXT_PUBLIC_WHATSAPP_NUMBER` to the
+shop's international phone number using digits only.
 
 Create Firestore documents in the `products` collection with this shape:
 
@@ -86,20 +90,29 @@ when stock is not tracked. Each product is capped at 20 units to match the order
 service limit. Invalid catalog records are excluded with a visible warning so
 one malformed record does not hide the rest of the collection.
 
-Run the product data tests with `npm test`.
+Run `npm test` to start the Firebase Auth, Firestore, and Functions emulators,
+then run the product, rules, and tampered-price checkout tests. The first run
+may download emulator binaries and requires a Java 21 runtime.
 
 ## Firebase Functions
 
-The Functions project requires Node.js 22. From the `functions` directory, install
-its dependencies with `npm install`. The root `firebase.json` points Firebase CLI
-to this directory and to `firestore.rules`.
+The Functions project requires Node.js 22. The root `firebase.json` points Firebase
+CLI to the Functions source and Firestore rules. Set `WEB_APP_ORIGIN` to the
+deployed storefront origin in `functions/.env.<project-id>` before deployment;
+set `NEXT_PUBLIC_ORDER_FUNCTION_URL` to the deployed HTTPS function URL in the
+storefront environment. The `functions` project also has `serve` and `deploy`
+scripts. M-Pesa initiation and payment callbacks are not implemented; no online
+payment is taken.
 
-The `serve` script in `functions/package.json` starts the Functions and Firestore
-emulators; the `deploy` script deploys the function and Firestore rules. Configure
-`WEB_APP_ORIGIN` for the deployed storefront's CORS origin. M-Pesa secret names
-are documented in `.env.local.example`, but M-Pesa payment initiation and callback
-handling are not implemented yet. The checkout only passes the customer's
-payment preference into the WhatsApp inquiry; no payment is initiated.
+## Security model
+
+The browser cart and all values in it are untrusted. Checkout sends only product
+IDs and quantities with a Firebase ID token; it never sends prices. The order
+function reloads each product from Firestore and calculates the item prices and
+total on the server. Firestore rules deny client writes to products and orders
+and limit order reads to the authenticated owner. User profile documents allow
+only profile fields and must never contain role, admin, or other authorization
+flags.
 
 ## Project map
 
@@ -110,8 +123,9 @@ payment preference into the WhatsApp inquiry; no payment is initiated.
   loading, error, warning, and empty states.
 - `src/app/cart/page.js` — shopping-bag review with quantity controls, item
   removal, fulfillment estimates, subtotal, and a link to checkout.
-- `src/app/checkout/page.js` — delivery form, M-Pesa and Pesapal preference
-  selection, order summary, and WhatsApp order-request handoff.
+- `src/app/checkout/page.js` — sign-in-gated checkout, authenticated order
+  creation, delivery form, M-Pesa and Pesapal preference selection, and
+  WhatsApp order-request handoff using the server's order ID and total.
 - `src/app/login/page.js` and `src/app/signup/page.js` — customer sign-in and
   account-creation routes.
 - `src/app/layout.js` — shared root layout, global stylesheet, and page metadata.
@@ -164,6 +178,11 @@ interaction, and visual design choices, see
 - `functions/package.json` — Cloud Functions runtime, emulator, deploy scripts,
   and backend dependencies.
 - `functions/package-lock.json` — pinned Cloud Functions dependency tree.
+- `tests/products.test.mjs` — product validation tests.
+- `tests/firestore.rules.test.mjs` — rules tests for client write denial,
+  order ownership, and safe user profile fields.
+- `tests/checkout-function.test.mjs` — emulator integration test for ignoring a
+  tampered client price.
 - `next.config.js` — Next.js configuration.
 - `postcss.config.mjs` — configures Tailwind CSS through PostCSS.
 - `jsconfig.json` — enables the `@/` alias for imports from `src/`.
@@ -175,10 +194,8 @@ interaction, and visual design choices, see
 - The sample catalog is intended for preview only; connect a Firebase project and
   populate Firestore before launch. Account actions also require the Firebase
   Email/Password provider to be enabled.
-- The checkout page does not yet call `createCheckoutOrder`; its current order
-  handoff is WhatsApp-based. Integrate the order function before accepting online
-  payments.
-- M-Pesa initiation, payment callbacks, order status updates, product-management
-  tooling, and automated tests are not implemented yet. The client-side cart is
-  for browsing and inquiry; order totals and stock must be revalidated on the
-  server before any payment flow goes live.
+- Checkout creates a pending order before opening WhatsApp. If customers do not
+  complete the WhatsApp handoff, the pending order remains for staff follow-up.
+- M-Pesa initiation, payment callbacks, order status updates, and
+  product-management tooling are not implemented. The store must confirm
+  availability, delivery fees, and payment instructions before fulfilling orders.

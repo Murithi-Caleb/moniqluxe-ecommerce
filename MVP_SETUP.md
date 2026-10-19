@@ -1,16 +1,17 @@
 # Moniq☆Luxe MVP: setup and next steps
 
 This guide takes the current storefront from a local preview to a small, usable
-MVP. The MVP lets customers browse a Firestore catalog, add products to a bag,
-and send an order inquiry through WhatsApp. You confirm availability, delivery,
-and payment with each customer.
+MVP. Customers browse a Firestore catalog, add products to a bag, create an
+authenticated pending order, and send delivery/payment details through WhatsApp.
+You confirm availability, delivery, and payment with each customer.
 
 **Important:** customer email/password sign-in and account creation are available
-when Firebase Authentication is configured. The bag and checkout collect
-delivery details and a preferred payment option (M-Pesa/Daraja Sandbox or
-Visa/bank card/Pesapal), then open a WhatsApp order request. Payment gateway
-processing, automatic order submission, and stock reservation are not
-implemented; customers are not charged online.
+when Firebase Authentication is configured. The browser cart is untrusted;
+checkout requires sign-in and sends product IDs and quantities to a Firebase
+Function, which reloads products and calculates prices from Firestore. Checkout
+then opens WhatsApp with the returned order ID and server-calculated total.
+Payment gateway processing and stock reservation are not implemented; customers
+are not charged online.
 
 ## 1. Check prerequisites
 
@@ -19,6 +20,7 @@ Install:
 - Node.js 22 or newer (the same major version is required by the optional
   Firebase Functions project).
 - npm, which is included with Node.js.
+- Java 21 for the Firebase Emulator Suite tests (`npm test`).
 - A Firebase account/project for a live catalog. This is optional for a local
   sample-catalog preview.
 - A WhatsApp number for receiving customer inquiries.
@@ -54,10 +56,10 @@ npm run dev
 ```
 
 Open <http://localhost:3000>. Confirm that the sample products appear, add one
-to the bag, open `/cart`, and check its quantity and subtotal. Continue to
-checkout, enter delivery details, select a payment preference, and verify the
-WhatsApp order request and recipient. This is a manual order inquiry; neither
-payment option initiates a real or sandbox charge yet.
+to the bag, open `/cart`, and check its quantity and subtotal. A sample-only
+preview cannot submit checkout; configure Firebase and the order function
+before testing authenticated checkout. No payment option initiates a real or
+sandbox charge.
 
 Stop the server with `Ctrl+C` when finished.
 
@@ -133,10 +135,20 @@ Skip this section if a sample-catalog preview is all you need.
    page if the catalog reports an error; incomplete Firebase configuration and
    invalid product records are omitted with a visible warning and logged for
    correction; other valid products remain available.
-11. Place a test inquiry using the bag and checkout. Confirm that the received
-    message includes delivery details, selected payment preference, item
-    quantities, prices, and subtotal. Confirm the manual order process with the
-    shop team.
+11. Set `WEB_APP_ORIGIN` to the storefront's production origin in
+    `functions/.env.<project-id>`, then deploy the function and rules:
+
+    ```powershell
+    npx firebase-tools deploy --only functions,firestore:rules
+    ```
+
+    Copy the deployed `createCheckoutOrder` HTTPS URL into
+    `NEXT_PUBLIC_ORDER_FUNCTION_URL` in `.env.local` and the hosting
+    environment.
+12. Sign in, add products to the bag, and submit checkout. Confirm the WhatsApp
+    message includes delivery details, payment preference, order ID, and the
+    total returned by the function. Verify the created order in Firestore and
+    confirm the manual fulfillment process with the shop team.
 
 ## 4. Build and deploy the storefront
 
@@ -155,21 +167,21 @@ Next.js (for example, Vercel):
    Do not commit `.env.local`.
 2. Import the repository into the hosting provider and let it detect Next.js.
    Keep the default build command unless the provider requests otherwise.
-3. Add the same six `NEXT_PUBLIC_FIREBASE_*` settings and
-   `NEXT_PUBLIC_WHATSAPP_NUMBER` from `.env.local` to the hosting project's
-   production environment variables. These Firebase web-app values are used by
-   the browser; never put service-account keys, payment secrets, or other
-   private credentials in `NEXT_PUBLIC_*` variables.
+3. Add the six `NEXT_PUBLIC_FIREBASE_*` settings,
+   `NEXT_PUBLIC_WHATSAPP_NUMBER`, and `NEXT_PUBLIC_ORDER_FUNCTION_URL` from
+   `.env.local` to the hosting project's production environment variables.
+   These Firebase web-app values are used by the browser; never put
+   service-account keys, payment secrets, or other private credentials in
+   `NEXT_PUBLIC_*` variables.
 4. Deploy, then open the production URL and repeat the catalog, account,
    bag, and WhatsApp inquiry checks from steps 10–11.
 5. If a `NEXT_PUBLIC_*` value changes, redeploy so the new value is included in
    the frontend build.
 
-The Firebase Functions code is not required for this WhatsApp MVP and is not
-called by the current checkout page. Do not deploy it expecting it to enable
-payment or automatic checkout; that integration still needs to be implemented.
-The `WEB_APP_ORIGIN` setting is for Functions CORS when that backend is
-integrated, not a required storefront setting.
+The Firebase Function creates a pending order and calculates its total, but does
+not initiate payment, reserve stock, or confirm fulfillment. Configure
+`WEB_APP_ORIGIN` to the exact storefront origin for Functions CORS. Checkout
+requires a signed-in Firebase user.
 
 ## 5. What to do next
 
@@ -179,31 +191,25 @@ Work through these in order; each step builds on the one before it:
    and mobile, confirm how staff verify stock and delivery, and document the
    manual payment and fulfillment process. Keep customer-facing prices and
    fulfillment estimates accurate.
-2. **Integrate authenticated checkout.** Customer email/password signup, login,
-   password reset, and sign-out are implemented in the storefront. Connect the
-   signed-in customer to `createCheckoutOrder` from checkout using a Firebase ID
-   token, and show order success and recoverable errors. The existing function
-   creates `pending_payment` orders using server-side product prices, but the
-   current storefront does not call it.
-3. **Add and test M-Pesa payments.** Implement server-side payment initiation
+2. **Add and test M-Pesa payments.** Implement server-side payment initiation
    and a verified callback that updates order status. Store provider credentials
    in Firebase Functions secrets, never in frontend environment variables.
    Do not mark an order paid based only on a browser redirect or customer
    message.
-4. **Complete order and stock operations.** Define how to prevent overselling,
+3. **Complete order and stock operations.** Define how to prevent overselling,
    handle failed/duplicate payment callbacks, update order status, and process
    cancellations/refunds. Add a protected way for authorized staff to manage
    catalog and orders; product writes are currently denied to all clients.
-5. **Add automated checks and prepare launch.** Cover cart behavior, product
-   validation, authorization, order totals, stock edge cases, and payment
-   callbacks. Test rules and functions in the Firebase emulators, then review
-   privacy, support, shipping, returns, and payment messaging before launch.
+4. **Prepare launch.** Expand coverage for cart behavior, stock edge cases, and
+   future payment callbacks. Run `npm test` to execute product validation,
+   Firestore rules, and the tampered-price checkout integration test in Firebase
+   emulators, then review privacy, support, shipping, returns, and payment
+   messaging before launch.
 
-Until authenticated order creation and payment gateway integrations are
-complete, describe the checkout honestly as a WhatsApp order inquiry with
-manual confirmation—not as an online checkout or a payment flow. Daraja and
-Pesapal credentials must be held server-side; do not collect or send card
-numbers or security codes through the storefront or WhatsApp.
+Describe checkout honestly as a pending order followed by WhatsApp confirmation,
+not as a payment flow. Daraja and Pesapal credentials must be held server-side;
+do not collect or send card numbers or security codes through the storefront or
+WhatsApp.
 
-Run the focused product validation tests with `npm test` and verify the
+Run `npm test` for product, rules, and function emulator tests, and verify the
 production bundle with `npm run build` before deployment.

@@ -30,6 +30,11 @@ function getAuthErrorMessage(error) {
   );
 }
 
+function getPostAuthPath() {
+  const redirectPath = new URLSearchParams(window.location.search).get("redirect");
+  return redirectPath === "/checkout" ? redirectPath : "/";
+}
+
 export default function AuthForm({ mode }) {
   const isSignup = mode === "signup";
   const router = useRouter();
@@ -67,7 +72,7 @@ export default function AuthForm({ mode }) {
       } else {
         await signIn(email.trim().toLowerCase(), password);
       }
-      router.replace("/");
+      router.replace(getPostAuthPath());
     } catch (error) {
       console.error(`Unable to ${isSignup ? "create an account" : "sign in"}.`, error);
       setErrorMessage(getAuthErrorMessage(error));
@@ -156,9 +161,13 @@ export default function AuthForm({ mode }) {
                 </p>
                 <Link
                   href="/"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    router.replace(getPostAuthPath());
+                  }}
                   className="mt-4 inline-flex rounded-full bg-[#d5b875] px-5 py-2.5 text-sm font-semibold text-[#181612] transition hover:bg-[#e4ca8f]"
                 >
-                  Explore the collection
+                  Continue
                 </Link>
               </div>
             ) : (

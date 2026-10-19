@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   CreditCard,
   Smartphone,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { auth } from "@/lib/firebase";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 
 const currencyFormatter = new Intl.NumberFormat("en-KE", {
@@ -21,13 +24,35 @@ const inputClassName =
   "mt-2 w-full rounded-xl border border-white/15 bg-[#171614] px-4 py-3 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-[#d5b875]";
 
 export default function CheckoutPage() {
+  const router = useRouter();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { items, subtotal, isHydrated } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("mpesa");
   const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.replace("/login?redirect=%2Fcheckout");
+    }
+  }, [isAuthLoading, router, user]);
+
+  async function handleSubmit(event) {
     event.preventDefault();
     setSubmitError("");
+
+    if (!user || !auth?.currentUser) {
+      router.replace("/login?redirect=%2Fcheckout");
+      return;
+    }
+
+    const functionUrl = process.env.NEXT_PUBLIC_ORDER_FUNCTION_URL;
+    if (!functionUrl) {
+      setSubmitError(
+        "Order checkout is not configured yet. Please contact the store for help.",
+      );
+      return;
+    }
 
     const formData = new FormData(event.currentTarget);
     const customerName = formData.get("name");
@@ -38,33 +63,84 @@ export default function CheckoutPage() {
       paymentMethod === "mpesa"
         ? "M-Pesa (Daraja Sandbox preference)"
         : "Visa / bank card (Pesapal preference)";
-    const message = [
-      "Hello Moniq☆Luxe Collection, I would like to place an order:",
-      "",
-      `Name: ${customerName}`,
-      `Phone: ${phone}`,
-      `Email: ${email}`,
-      `Delivery address: ${address}`,
-      `Preferred payment: ${paymentLabel}`,
-      "",
-      ...items.map(
-        (item) =>
-          `• ${item.title} × ${item.quantity} — ${currencyFormatter.format(item.price * item.quantity)} (${item.fulfillmentType === "local_stock" ? "In Stock / fast delivery" : "Pre-order / 7–14 days"})`,
-      ),
-      `Subtotal: ${currencyFormatter.format(subtotal)}`,
-      "",
-      "Please confirm availability, delivery fees, and the secure payment instructions.",
-    ].join("\n");
-    const url = getWhatsAppUrl(message);
+    setIsSubmitting(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch(functionUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+          })),
+        }),
+      });
+      const order = await response.json();
 
-    if (!url) {
+      if (!response.ok) {
+        throw new Error(order.error || "Unable to create your order.");
+      }
+      if (
+        typeof order.orderId !== "string" ||
+        !Number.isSafeInteger(order.subtotal) ||
+        order.subtotal < 0 ||
+        order.currency !== "KES"
+      ) {
+        throw new Error("The order service returned an invalid order summary.");
+      }
+
+      const message = [
+        "Hello Moniq☆Luxe Collection, I would like to confirm my order:",
+        "",
+        `Order ID: ${order.orderId}`,
+        `Name: ${customerName}`,
+        `Phone: ${phone}`,
+        `Email: ${email}`,
+        `Delivery address: ${address}`,
+        `Preferred payment: ${paymentLabel}`,
+        "",
+        ...items.map(
+          (item) =>
+            `• ${item.title} × ${item.quantity} (${item.fulfillmentType === "local_stock" ? "In Stock / fast delivery" : "Pre-order / 7–14 days"})`,
+        ),
+        `Order total: ${currencyFormatter.format(order.subtotal)}`,
+        "",
+        "Please confirm delivery fees and the secure payment instructions.",
+      ].join("\n");
+      const url = getWhatsAppUrl(message);
+
+      if (!url) {
+        setSubmitError(
+          `Order ${order.orderId} was created, but WhatsApp ordering is not configured. Please contact the store with this order ID.`,
+        );
+        return;
+      }
+
+      window.location.assign(url);
+    } catch (error) {
+      console.error("Unable to submit the checkout order.", error);
       setSubmitError(
-        "WhatsApp ordering is not configured yet. Please contact the store directly.",
+        error instanceof Error
+          ? error.message
+          : "Unable to submit your order. Please try again.",
       );
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    window.location.assign(url);
+  if (isAuthLoading || !user) {
+    return (
+      <main className="mx-auto min-h-screen max-w-6xl px-6 py-10 sm:py-16">
+        <p className="text-sm text-white/50" aria-live="polite">
+          {isAuthLoading ? "Checking your account…" : "Redirecting to sign in…"}
+        </p>
+      </main>
+    );
   }
 
   if (!isHydrated) {
@@ -274,9 +350,10 @@ export default function CheckoutPage() {
           </div>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#d5b875] px-5 py-3 text-sm font-semibold text-[#181612] transition hover:bg-[#e4ca8f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d5b875]"
           >
-            Send order request
+            {isSubmitting ? "Creating your order…" : "Create order and continue"}
             <ArrowRight aria-hidden="true" size={16} />
           </button>
           {submitError && (
